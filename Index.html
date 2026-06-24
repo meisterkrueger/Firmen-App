@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firmen Erfassungs-App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #0078d4; }
+        label { display: block; margin: 10px 0 5px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button { background-color: #0078d4; color: white; border: none; padding: 12px 15px; border-radius: 4px; cursor: pointer; font-size: 15px; width: 100%; }
+        button:hover { background-color: #005a9e; }
+        button.secondary { background-color: #e1dfdd; color: #333; }
+        button.secondary:hover { background-color: #c8c6c4; }
+        button.success { background-color: #107c41; }
+        button.success:hover { background-color: #0b5930; }
+        .welcome-text { font-size: 18px; font-weight: bold; color: #107c41; }
+        
+        .table-container { margin-top: 15px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .delete-btn { color: #a4262c; cursor: pointer; background: none; border: none; padding: 0; font-size: 14px; width: auto; }
+        .hint { font-size: 13px; color: #666; font-style: italic; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Firmen Erfassungs-App</h1>
+    
+    <div class="card" id="name-setup-section">
+        <h2>Einrichtung</h2>
+        <p>Bitte gib deinen vollständigen Namen ein:</p>
+        <label for="mitarbeiter-name-input">Dein Name:</label>
+        <input type="text" id="mitarbeiter-name-input" placeholder="z.B. Max Mustermann">
+        <button id="btn-save-name">App starten</button>
+    </div>
+
+    <div id="main-app" style="display: none;">
+        <div class="card">
+            <div class="welcome-text" id="welcome-msg">👤 Angemeldet als:</div>
+            <div style="color: #107c41; font-size: 13px; font-weight: bold; margin-top: 5px;">✅ Kundenliste lokal aktiv (Offline-Modus)</div>
+        </div>
+
+        <datalist id="kunden-liste"></datalist>
+        <datalist id="taetigkeiten-liste"></datalist>
+
+        <div class="card">
+            <h2>⏱️ Arbeitszeit erfassen</h2>
+            <form id="form-zeit">
+                <label for="zeit-kunde">Kunde / Projekt:</label>
+                <input type="text" id="zeit-kunde" list="kunden-liste" placeholder="Kunde wählen oder eintippen..." required>
+
+                <label for="zeit-taetigkeit">Tätigkeit:</label>
+                <input type="text" id="zeit-taetigkeit" list="taetigkeiten-liste" placeholder="Tätigkeit wählen oder eintippen..." required>
+
+                <label for="zeit-start">Von:</label>
+                <input type="datetime-local" id="zeit-start" required>
+
+                <label for="zeit-ende">Bis:</label>
+                <input type="datetime-local" id="zeit-ende" required>
+
+                <div class="btn-group">
+                    <button type="button" class="secondary" id="btn-save-local">＋ Eintrag merken</button>
+                    <button type="button" class="success" id="btn-send-all">💾 Bericht senden (<span id="local-count">0</span>)</button>
+                </div>
+            </form>
+
+            <div class="table-container" id="storage-container" style="display:none;">
+                <h3>Gemerkte Einträge für heute:</h3>
+                <table id="storage-table">
+                    <thead>
+                        <tr>
+                            <th>Kunde</th>
+                            <th>Tätigkeit</th>
+                            <th>Zeit</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📸 Mängel & Fotos dokumentieren</h2>
+            <form id="form-mangel">
+                <label for="mangel-kunde">Kunde / Projekt:</label>
+                <input type="text" id="mangel-kunde" list="kunden-liste" placeholder="Kunde wählen oder eintippen..." required>
+
+                <label for="mangel-beschreibung">Beschreibung des Mangels:</label>
+                <textarea id="mangel-beschreibung" rows="3" placeholder="Was fehlt oder muss dokumentiert werden?" required></textarea>
+
+                <button type="submit" style="background-color: #107c41; margin-top: 10px;">Bericht kopieren &amp; Dropbox öffnen</button>
+                <div class="hint">Kopiert den Text automatisch, damit du ihn gleich bei Dropbox einfügen kannst.</div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================
+    // HIER DEINE KUNDEN UND TÄTIGKEITEN EINTRAGEN
+    // =========================================================
+    const MEINE_KUNDEN = [
+        "Müller GmbH",
+        "Schmidt Logistik",
+        "Bäckerei Meier",
+        "Projekt Neubau X"
+    ];
+
+    const MEINE_TAETIGKEITEN = [
+        "Montagearbeiten",
+        "Wartung & Service",
+        "Fehlersuche",
+        "Kabelverlegung",
+        "Materialbeschaffung"
+    ];
+
+    const DROPBOX_UPLOAD_URL = "https://www.dropbox.com/request/v5yurwfad89nd0a0dwqp"; 
+    // =========================================================
+
+    const setupSection = document.getElementById('name-setup-section');
+    const mainApp = document.getElementById('main-app');
+    const nameInput = document.getElementById('mitarbeiter-name-input');
+    const saveNameBtn = document.getElementById('btn-save-name');
+    const welcomeMsg = document.getElementById('welcome-msg');
+    
+    let mitarbeiterName = "";
+    let gemerkteZeiten = [];
+
+    try {
+        mitarbeiterName = localStorage.getItem('mitarbeiter_name');
+        const gespeicherteZeiten = localStorage.getItem('gemerkte_zeiten');
+        if (gespeicherteZeiten) gemerkteZeiten = JSON.parse(gespeicherteZeiten);
+    } catch (e) {}
+
+    if (mitarbeiterName) { zeigeApp(mitarbeiterName); }
+
+    saveNameBtn.addEventListener('click', () => {
+        const name = nameInput.value.trim();
+        if (name.length > 2) {
+            try { localStorage.setItem('mitarbeiter_name', name); } catch (e) {}
+            zeigeApp(name);
+        } else { alert('Bitte gib deinen Namen ein.'); }
+    });
+
+    function zeigeApp(name) {
+        mitarbeiterName = name;
+        setupSection.style.display = 'none';
+        mainApp.style.display = 'block';
+        welcomeMsg.innerText = `👤 Angemeldet als: ${name}`;
+        
+        // Listen befüllen
+        const kundenListe = document.getElementById('kunden-liste');
+        const taetigkeitenListe = document.getElementById('taetigkeiten-liste');
+        kundenListe.innerHTML = "";
+        taetigkeitenListe.innerHTML = "";
+        
+        MEINE_KUNDEN.forEach(k => kundenListe.innerHTML += `<option value="${k}">`);
+        MEINE_TAETIGKEITEN.forEach(t => taetigkeitenListe.innerHTML += `<option value="${t}">`);
+        
+        updateTabelle();
+    }
+
+    // ARBEITSZEIT LOKAL MERKEN
+    document.getElementById('btn-save-local').addEventListener('click', () => {
+        const kunde = document.getElementById('zeit-kunde').value.trim();
+        const taetigkeit = document.getElementById('zeit-taetigkeit').value.trim();
+        const von = document.getElementById('zeit-start').value;
+        const bis = document.getElementById('zeit-ende').value;
+
+        if (!kunde || !taetigkeit || !von || !bis) { alert("Bitte alle Felder ausfüllen!"); return; }
+
+        gemerkteZeiten.push({ kunde, taetigkeit, von: von.replace('T', ' '), bis: bis.replace('T', ' ') });
+        try { localStorage.setItem('gemerkte_zeiten', JSON.stringify(gemerkteZeiten)); } catch(e){}
+        updateTabelle();
+        
+        document.getElementById('zeit-kunde').value = "";
+        document.getElementById('zeit-taetigkeit').value = "";
+        document.getElementById('zeit-start').value = "";
+        document.getElementById('zeit-ende').value = "";
+    });
+
+    function updateTabelle() {
+        const tbody = document.querySelector('#storage-table tbody');
+        const container = document.getElementById('storage-container');
+        const countSpan = document.getElementById('local-count');
+        
+        tbody.innerHTML = "";
+        countSpan.innerText = gemerkteZeiten.length;
+
+        if (gemerkteZeiten.length === 0) { container.style.display = 'none'; return; }
+        container.style.display = 'block';
+
+        gemerkteZeiten.forEach((e, i) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td><b>${e.kunde}</b></td><td>${e.taetigkeit}</td><td>${e.von.split(' ')[1]} - ${e.bis.split(' ')[1]}</td><td><button type="button" class="delete-btn" onclick="loescheEintrag(${i})">❌</button></td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    window.loescheEintrag = function(i) {
+        gemerkteZeiten.splice(i, 1);
+        try { localStorage.setItem('gemerkte_zeiten', JSON.stringify(gemerkteZeiten)); } catch(e){}
+        updateTabelle();
+    };
+
+    // ZEITBERICHT SENDEN VIA ZWISCHENABLAGE
+    document.getElementById('btn-send-all').addEventListener('click', () => {
+        if (gemerkteZeiten.length === 0) return;
+
+        let txt = `ZEITBERICHT von: ${mitarbeiterName}\nGesendet am: ${new Date().toLocaleString('de-DE')}\n\n`;
+        gemerkteZeiten.forEach((e, i) => {
+            txt += `Eintrag ${i+1}:\n  Kunde: ${e.kunde}\n  Tätigkeit: ${e.taetigkeit}\n  Von: ${e.von}\n  Bis: ${e.bis}\n--------------------\n`;
+        });
+
+        navigator.clipboard.writeText(txt).then(() => {
+            alert('Der Zeitbericht wurde in deine Zwischenablage kopiert!\n\nIm nächsten Schritt öffnet sich Dropbox. Klicke dort einfach auf "Dateien hinzufügen", lade deine Berichtsdatei oder Fotos hoch und füge diesen kopierten Text in das Namensfeld bei Dropbox ein.');
+            window.open(DROPBOX_UPLOAD_URL, '_blank');
+            gemerkteZeiten = [];
+            try { localStorage.removeItem('gemerkte_zeiten'); } catch(e){}
+            updateTabelle();
+        }).catch(() => {
+            alert('Kopieren fehlgeschlagen. Bitte kopiere den Text manuell.');
+        });
+    });
+
+    // MÄNGELBERICHT SENDEN VIA ZWISCHENABLAGE
+    document.getElementById('form-mangel').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const kunde = document.getElementById('mangel-kunde').value;
+        const beschreibung = document.getElementById('mangel-beschreibung').value;
+
+        const txt = `MÄNGELBERICHT\nMitarbeiter: ${mitarbeiterName}\nKunde: ${kunde}\nBeschreibung: ${beschreibung}`;
+
+        navigator.clipboard.writeText(txt).then(() => {
+            alert('Mängelbericht wurde kopiert!\n\nDropbox öffnet sich jetzt. Lade dort einfach deine Mängelfotos hoch. Den kopierten Text kannst du bei den Namensfeldern eintragen.');
+            window.open(DROPBOX_UPLOAD_URL, '_blank');
+            document.getElementById('form-mangel').reset();
+        });
+    });
+</script>
+</body>
+</html>
